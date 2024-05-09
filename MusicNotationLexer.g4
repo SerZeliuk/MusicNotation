@@ -1,5 +1,16 @@
-step : 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B' ;
-octave : '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' ;
-duration : 'w' | 'h' | 'q' | 'e' | 's' | 't' ;
-rest : 'R' duration ;
-pipe: '|';
+lexer grammar MusicNotationLexer;
+
+NOTE        : [a-gA-G];
+OCTAVE      : [0-8];
+DURATION    : 'w' | 'h' | 'q' | 'e' | 's' | 't';
+REST        : 'R';
+SHARP       : '#';
+FLAT        : 'b';
+PIPE        : '|';
+NUMBER      : [0-9]+;
+TEMPO       : NUMBER 'bpm';
+KEY         : [A-G] ('#' | 'b')? ('m')? ;
+STACCATO    : '.';
+CRESCENDO   : '<';
+DIMINUENDO  : '>';
+WS          : [ \t\r\n]+ -> skip;
