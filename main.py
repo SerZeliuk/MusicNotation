@@ -2,7 +2,7 @@ import sys
 from antlr4 import *
 from MusicNotationLexer import MusicNotationLexer
 from MusicNotationParser import MusicNotationParser
-from music21 import stream, note, chord, duration, tempo, key, environment, instrument
+from music21 import stream, note, chord, dynamics, tempo, key, environment, instrument, metadata, articulations, meter
 import tkinter as tk
 from tkinter import scrolledtext
 
@@ -10,12 +10,34 @@ class MusicNotationListener(ParseTreeListener):
     def __init__(self):
         self.stream = stream.Score()
         self.current_part = stream.Part()
-        self.current_part.append(instrument.fromString(' '))
+        self.current_part.append(instrument.fromString('Piano'))
         self.stream.append(self.current_part)
+    
+    def enterTitle(self, ctx: MusicNotationParser.TitleContext):
+        title_text = ctx.STRING().getText()
+        self.stream.metadata = metadata.Metadata()
+        self.stream.metadata.title = title_text
+
+    def enterAuthor(self, ctx: MusicNotationParser.AuthorContext):
+        author_text = ctx.STRING().getText()
+        if not self.stream.metadata:
+            self.stream.metadata = metadata.Metadata()
+        self.stream.metadata.composer = author_text
+
+    def enterYear(self, ctx: MusicNotationParser.YearContext):
+        year_text = ctx.YEAR().getText()
+        if not self.stream.metadata:
+            self.stream.metadata = metadata.Metadata()
+        self.stream.metadata.date = metadata.Date(year_text)
 
     def enterKey(self, ctx: MusicNotationParser.KeyContext):
         key_signature = ctx.getText().split('=')[1]
         self.current_part.append(key.Key(key_signature))
+
+    def enterTimeSignature(self, ctx: MusicNotationParser.Time_signatureContext):
+        time_signature_text = ctx.getText()
+        numerator, denominator = map(int, time_signature_text.split('/'))
+        self.current_part.append(meter.TimeSignature(f"{numerator}/{denominator}"))
 
     def enterTempo(self, ctx: MusicNotationParser.TempoContext):
         bpm = int(ctx.getText().replace('bpm', ''))
@@ -49,6 +71,20 @@ class MusicNotationListener(ParseTreeListener):
         duration_type = self.convert_duration(dur)
         r = note.Rest(type=duration_type)
         self.current_part.append(r)
+    
+    def enterArticulation(self, ctx: MusicNotationParser.ArticulationContext):
+        staccato_mark = ctx.STACCATO().getText()
+        if staccato_mark:
+            n = self.current_part.notes[-1]
+            n.articulations.append(articulations.Staccato())
+
+    def enterDynamic(self, ctx: MusicNotationParser.DynamicContext):
+        if ctx.CRESCENDO():
+            cresc = dynamics.Crescendo()
+            self.current_part.append(cresc)
+        elif ctx.DIMINUENDO():
+            dim = dynamics.Diminuendo()
+            self.current_part.append(dim)
 
     def convert_duration(self, dur):
         duration_map = {
@@ -73,7 +109,7 @@ def parse_and_show(input_text):
     walker.walk(listener, tree)
 
     listener.stream.show('midi')
-    # listener.stream.show('musicxml')
+    listener.stream.show('musicxml')
 
 def on_parse_button_click():
     input_text = text_area.get("1.0", tk.END)
